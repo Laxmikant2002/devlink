@@ -1,91 +1,146 @@
 import express, { Request, Response } from 'express';
-import { v4 as uuidv4 } from 'uuid';
+import cors from 'cors';
 import { Developer, CreateDeveloperRequest } from './types/developer';
+import { connectDB } from './config/database';
+import { DeveloperModel } from './models/developer.model';
+import mongoose from 'mongoose';
 
 const app = express();
 const port = process.env.PORT || 3001;
 
+connectDB();
+
+// CORS configuration
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: true
+}));
+
 app.use(express.json());
-
-// In-memory storage for developers
-let developers: Developer[] = [];
-
-// GET /developers - List all developers
-app.get('/developers', (req: Request, res: Response) => {
-  res.json(developers);
+// GET /developers - Get all developers with optional search
+app.get('/developers', async (req: Request, res: Response) => {
+  try {
+    const { search } = req.query;
+    let query = {};
+    
+    if (search && typeof search === 'string') {
+      const searchRegex = new RegExp(search, 'i'); // Case-insensitive search
+      query = {
+        $or: [
+          { name: searchRegex },
+          { primarySkill: searchRegex },
+          { skills: { $in: [searchRegex] } },
+          { location: searchRegex }
+        ]
+      };
+    }
+    
+    const developers = await DeveloperModel.find(query);
+    res.json(developers);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching developers', error: (error as Error).message });
+  }
 });
 
 // GET /developers/:id - Get single developer by ID
-app.get('/developers/:id', (req: Request, res: Response) => {
-  const { id } = req.params;
-  const developer = developers.find(dev => dev.id === id);
-  
-  if (developer) {
-    res.json(developer);
-  } else {
-    res.status(404).json({ message: 'Developer not found' });
+app.get('/developers/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({ message: 'Invalid developer ID format' });
+      return;
+    }
+    
+    const developer = await DeveloperModel.findById(id);
+    
+    if (developer) {
+      res.json(developer);
+    } else {
+      res.status(404).json({ message: 'Developer not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching developer', error: (error as Error).message });
   }
 });
 
 // POST /developers - Add a new developer
-app.post('/developers', (req: Request<{}, Developer, CreateDeveloperRequest>, res: Response): void => {
-  const { name, primarySkill, photoURL, skills, location, bio, contact } = req.body;
-  
-  // Basic validation
-  if (!name || !primarySkill || !skills || !location) {
-    res.status(400).json({ 
-      message: 'Missing required fields: name, primarySkill, skills, and location are required' 
-    });
-    return;
-  }
+app.post('/developers', async (req: Request<{}, Developer, CreateDeveloperRequest>, res: Response): Promise<void> => {
+  try {
+    const { name, primarySkill, photoURL, skills, location, bio, contact } = req.body;
+    
+    if (!name || !primarySkill || !skills || !location) {
+      res.status(400).json({ 
+        message: 'Missing required fields: name, primarySkill, skills, and location are required' 
+      });
+      return;
+    }
 
-  const newDeveloper: Developer = {
-    id: uuidv4(),
-    name,
-    primarySkill,
-    photoURL,
-    skills,
-    location,
-    bio,
-    contact
-  };
-  
-  developers.push(newDeveloper);
-  res.status(201).json(newDeveloper);
+    const newDeveloper = new DeveloperModel({
+      name,
+      primarySkill,
+      photoURL,
+      skills,
+      location,
+      bio,
+      contact
+    });
+    
+    const savedDeveloper = await newDeveloper.save();
+    res.status(201).json(savedDeveloper);
+  } catch (error) {
+    res.status(500).json({ message: 'Error creating developer', error: (error as Error).message });
+  }
 });
 
 // PUT /developers/:id - Update a developer
-app.put('/developers/:id', (req: Request<{ id: string }, Developer, Partial<CreateDeveloperRequest>>, res: Response): void => {
-  const { id } = req.params;
-  const developerIndex = developers.findIndex(dev => dev.id === id);
-  
-  if (developerIndex === -1) {
-    res.status(404).json({ message: 'Developer not found' });
-    return;
-  }
+app.put('/developers/:id', async (req: Request<{ id: string }, Developer, Partial<CreateDeveloperRequest>>, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({ message: 'Invalid developer ID format' });
+      return;
+    }
 
-  const updatedDeveloper: Developer = {
-    ...developers[developerIndex],
-    ...req.body,
-    id // Ensure ID cannot be changed
-  };
-  
-  developers[developerIndex] = updatedDeveloper;
-  res.json(updatedDeveloper);
+    const updatedDeveloper = await DeveloperModel.findByIdAndUpdate(
+      id,
+      req.body,
+      { new: true, runValidators: true }
+    );
+    
+    if (!updatedDeveloper) {
+      res.status(404).json({ message: 'Developer not found' });
+      return;
+    }
+
+    res.json(updatedDeveloper);
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating developer', error: (error as Error).message });
+  }
 });
 
 // DELETE /developers/:id - Delete a developer
-app.delete('/developers/:id', (req: Request, res: Response): void => {
-  const { id } = req.params;
-  const developerIndex = developers.findIndex(dev => dev.id === id);
-  
-  if (developerIndex === -1) {
-    res.status(404).json({ message: 'Developer not found' });
-    return;
-  }
+app.delete('/developers/:id', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({ message: 'Invalid developer ID format' });
+      return;
+    }
 
-  developers.splice(developerIndex, 1);
-  res.status(204).send();
+    const deletedDeveloper = await DeveloperModel.findByIdAndDelete(id);
+    
+    if (!deletedDeveloper) {
+      res.status(404).json({ message: 'Developer not found' });
+      return;
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting developer', error: (error as Error).message });
+  }
 });
 
 // Health check endpoint
