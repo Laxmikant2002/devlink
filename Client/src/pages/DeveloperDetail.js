@@ -11,6 +11,7 @@ function DeveloperDetail() {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState(null);
 
   useEffect(() => {
     if (id) {
@@ -41,6 +42,7 @@ function DeveloperDetail() {
   const handleCancelEdit = () => {
     setIsEditing(false);
     setEditForm(developer); // Reset form to original data
+    setPhotoPreview(null); // Clear photo preview
   };
 
   const handleSaveEdit = async () => {
@@ -92,6 +94,50 @@ function DeveloperDetail() {
         [name]: value
       }));
     }
+  };
+
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        setError('Please select a valid image file (JPEG, PNG, WebP)');
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Image size should be less than 5MB');
+        return;
+      }
+
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(file);
+      setPhotoPreview(previewUrl);
+      
+      // Convert to base64 for backend compatibility
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditForm(prev => ({
+          ...prev,
+          photoURL: reader.result
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removePhoto = () => {
+    setEditForm(prev => ({
+      ...prev,
+      photoURL: ''
+    }));
+    setPhotoPreview(null);
+    
+    // Clear file input
+    const fileInput = document.getElementById('editPhotoUpload');
+    if (fileInput) fileInput.value = '';
   };
 
   if (loading) {
@@ -191,29 +237,203 @@ function DeveloperDetail() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main Content */}
             <div className="lg:col-span-2">
-              {/* Bio */}
-              <div className="mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">About</h2>
-                <p className="text-gray-700 leading-relaxed">{developer.bio}</p>
-              </div>
+              {!isEditing ? (
+                <>
+                  {/* Bio */}
+                  <div className="mb-8">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-4">About</h2>
+                    <p className="text-gray-700 leading-relaxed">{developer.bio}</p>
+                  </div>
 
-              {/* Skills */}
-              <div className="mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">Skills & Technologies</h2>
-                <div className="flex flex-wrap gap-3">
-                  <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-blue-100 text-blue-800 border-2 border-blue-200">
-                    {developer.primarySkill} (Primary)
-                  </span>
-                  {developer.skills.filter(skill => skill !== developer.primarySkill).map((skill, index) => (
-                    <span
-                      key={index}
-                      className="inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-gray-100 text-gray-700"
-                    >
-                      {skill}
-                    </span>
-                  ))}
+                  {/* Skills */}
+                  <div className="mb-8">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-4">Skills & Technologies</h2>
+                    <div className="flex flex-wrap gap-3">
+                      <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-blue-100 text-blue-800 border-2 border-blue-200">
+                        {developer.primarySkill} (Primary)
+                      </span>
+                      {developer.skills.filter(skill => skill !== developer.primarySkill).map((skill, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-gray-100 text-gray-700"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                /* Edit Form */
+                <div className="space-y-6">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-4">Edit Profile</h2>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                      <input
+                        type="text"
+                        name="name"
+                        value={editForm.name || ''}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Primary Skill</label>
+                      <input
+                        type="text"
+                        name="primarySkill"
+                        value={editForm.primarySkill || ''}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Profile Photo</label>
+                    
+                    {!photoPreview && !editForm.photoURL ? (
+                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 transition-colors max-w-sm">
+                        <input
+                          type="file"
+                          id="editPhotoUpload"
+                          accept="image/*"
+                          onChange={handlePhotoUpload}
+                          className="hidden"
+                        />
+                        <label
+                          htmlFor="editPhotoUpload"
+                          className="cursor-pointer flex flex-col items-center"
+                        >
+                          <svg className="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                          </svg>
+                          <span className="text-sm text-gray-600">Click to upload photo</span>
+                          <span className="text-xs text-gray-500">PNG, JPG, WebP up to 5MB</span>
+                        </label>
+                      </div>
+                    ) : (
+                      <div className="relative inline-block">
+                        <img
+                          src={photoPreview || editForm.photoURL}
+                          alt="Preview"
+                          className="w-32 h-32 object-cover rounded-lg"
+                        />
+                        <button
+                          type="button"
+                          onClick={removePhoto}
+                          className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors text-sm"
+                        >
+                          ×
+                        </button>
+                        <div className="mt-2">
+                          <input
+                            type="file"
+                            id="editPhotoUpload"
+                            accept="image/*"
+                            onChange={handlePhotoUpload}
+                            className="hidden"
+                          />
+                          <label
+                            htmlFor="editPhotoUpload"
+                            className="cursor-pointer text-sm text-blue-600 hover:text-blue-800"
+                          >
+                            Change photo
+                          </label>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Skills (comma-separated)</label>
+                    <input
+                      type="text"
+                      name="skills"
+                      value={editForm.skills ? editForm.skills.join(', ') : ''}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="React, Node.js, JavaScript, etc."
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                    <input
+                      type="text"
+                      name="location"
+                      value={editForm.location || ''}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
+                    <textarea
+                      name="bio"
+                      rows={4}
+                      value={editForm.bio || ''}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Tell us about yourself..."
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                      <input
+                        type="email"
+                        name="contact.email"
+                        value={editForm.contact?.email || ''}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                      <input
+                        type="tel"
+                        name="contact.phone"
+                        value={editForm.contact?.phone || ''}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">GitHub</label>
+                      <input
+                        type="text"
+                        name="contact.github"
+                        value={editForm.contact?.github || ''}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="username or full URL"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">LinkedIn</label>
+                      <input
+                        type="text"
+                        name="contact.linkedin"
+                        value={editForm.contact?.linkedin || ''}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="username or full URL"
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Sidebar */}
@@ -349,118 +569,6 @@ function DeveloperDetail() {
           </div>
         </div>
       </div>
-      
-      {/* Edit Form Modal */}
-      {isEditing && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-screen overflow-y-auto">
-            <div className="p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Edit Developer</h3>
-              
-              <form className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={editForm.name || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Primary Skill</label>
-                  <input
-                    type="text"
-                    name="primarySkill"
-                    value={editForm.primarySkill || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Photo URL</label>
-                  <input
-                    type="url"
-                    name="photoURL"
-                    value={editForm.photoURL || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Skills (comma-separated)</label>
-                  <input
-                    type="text"
-                    name="skills"
-                    value={editForm.skills ? editForm.skills.join(', ') : ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                  <input
-                    type="text"
-                    name="location"
-                    value={editForm.location || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
-                  <textarea
-                    name="bio"
-                    rows={3}
-                    value={editForm.bio || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                  <input
-                    type="email"
-                    name="contact.email"
-                    value={editForm.contact?.email || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">GitHub</label>
-                  <input
-                    type="text"
-                    name="contact.github"
-                    value={editForm.contact?.github || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">LinkedIn</label>
-                  <input
-                    type="text"
-                    name="contact.linkedin"
-                    value={editForm.contact?.linkedin || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
       
       {/* Delete Confirmation Modal */}
       {deleteConfirm && (

@@ -5,7 +5,8 @@ import { developerService } from '../services/api';
 function AddDeveloper() {
   const [form, setForm] = useState({
     name: '',
-    photoURL: '',
+    photoFile: null,
+    photoURL: '', // Keep this for backend compatibility
     skills: [],
     location: '',
     bio: '',
@@ -21,6 +22,7 @@ function AddDeveloper() {
   const [skillInput, setSkillInput] = useState('');
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState(null);
   const navigate = useNavigate();
 
   const handleAddSkill = () => {
@@ -55,6 +57,57 @@ function AddDeveloper() {
         [field]: value
       }
     });
+  };
+
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        setErrors({ ...errors, photo: 'Please select a valid image file (JPEG, PNG, WebP)' });
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setErrors({ ...errors, photo: 'Image size should be less than 5MB' });
+        return;
+      }
+
+      // Clear any previous photo errors
+      const newErrors = { ...errors };
+      delete newErrors.photo;
+      setErrors(newErrors);
+
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(file);
+      setPhotoPreview(previewUrl);
+      
+      // Convert to base64 for now (in a real app, you'd upload to a file service)
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setForm({
+          ...form,
+          photoFile: file,
+          photoURL: reader.result // Store base64 for backend compatibility
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removePhoto = () => {
+    setForm({
+      ...form,
+      photoFile: null,
+      photoURL: ''
+    });
+    setPhotoPreview(null);
+    
+    // Clear file input
+    const fileInput = document.getElementById('photoUpload');
+    if (fileInput) fileInput.value = '';
   };
 
   const validateForm = () => {
@@ -142,17 +195,61 @@ function AddDeveloper() {
               </div>
 
               <div>
-                <label htmlFor="photoURL" className="block text-sm font-medium text-gray-700 mb-2">
-                  Profile Photo URL (optional)
+                <label htmlFor="photoUpload" className="block text-sm font-medium text-gray-700 mb-2">
+                  Profile Photo (optional)
                 </label>
-                <input
-                  type="url"
-                  id="photoURL"
-                  value={form.photoURL}
-                  onChange={(e) => setForm({ ...form, photoURL: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="https://example.com/photo.jpg"
-                />
+                
+                {!photoPreview ? (
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                    <input
+                      type="file"
+                      id="photoUpload"
+                      accept="image/*"
+                      onChange={handlePhotoUpload}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="photoUpload"
+                      className="cursor-pointer flex flex-col items-center"
+                    >
+                      <svg className="w-12 h-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      </svg>
+                      <span className="text-sm text-gray-600">Click to upload photo</span>
+                      <span className="text-xs text-gray-500 mt-1">PNG, JPG, WebP up to 5MB</span>
+                    </label>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <img
+                      src={photoPreview}
+                      alt="Preview"
+                      className="w-32 h-32 object-cover rounded-lg mx-auto"
+                    />
+                    <button
+                      type="button"
+                      onClick={removePhoto}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                    <p className="text-center text-sm text-gray-600 mt-2">Click to change photo</p>
+                    <input
+                      type="file"
+                      id="photoUpload"
+                      accept="image/*"
+                      onChange={handlePhotoUpload}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="photoUpload"
+                      className="cursor-pointer absolute inset-0 rounded-lg"
+                    />
+                  </div>
+                )}
+                {errors.photo && <p className="mt-1 text-sm text-red-600">{errors.photo}</p>}
               </div>
 
               <div>
