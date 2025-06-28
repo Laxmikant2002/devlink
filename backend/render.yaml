@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: devlink-backend
+    env: node
+    buildCommand: npm run build
+    startCommand: npm start
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false  # You'll set this manually in Render dashboard
+      - key: FRONTEND_URL
+        sync: false  # You'll set this manually in Render dashboard

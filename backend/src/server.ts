@@ -4,6 +4,10 @@ import { Developer, CreateDeveloperRequest } from './types/developer';
 import { connectDB } from './config/database';
 import { DeveloperModel } from './models/developer.model';
 import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -11,8 +15,14 @@ const port = process.env.PORT || 3001;
 connectDB();
 
 // CORS configuration
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://your-frontend-app.onrender.com', // Update this with your actual frontend URL
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: allowedOrigins,
   credentials: true
 }));
 
