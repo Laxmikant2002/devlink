@@ -7,10 +7,15 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/devlin
 
 export const connectDB = async (): Promise<void> => {
   try {
-    await mongoose.connect(MONGODB_URI);
-    console.log('Connected to MongoDB');
+    await mongoose.connect(MONGODB_URI, {
+      serverSelectionTimeoutMS: 5000, // Fail after 5s
+      heartbeatFrequencyMS: 30000, // Send ping every 30s
+      tls: true,
+      tlsAllowInvalidCertificates: false
+    });
+    console.log('✅ Connected to MongoDB');
   } catch (error) {
-    console.error(' MongoDB connection error:', error);
+    console.error('❌ MongoDB connection error:', error);
     process.exit(1);
   }
 };

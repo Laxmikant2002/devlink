@@ -17,12 +17,24 @@ connectDB();
 // CORS configuration
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://your-frontend-app.onrender.com', // Update this with your actual frontend URL
+  'http://localhost:3001', 
+  'https://devlink-frontend.vercel.app', // Update this with your actual frontend URL
+  'https://your-frontend-app.onrender.com',
   process.env.FRONTEND_URL
 ].filter((origin): origin is string => Boolean(origin));
 
 app.use(cors({
-  origin: allowedOrigins.length > 0 ? allowedOrigins : 'http://localhost:3000',
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('❌ CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 
@@ -162,9 +174,25 @@ app.delete('/developers/:id', async (req: Request, res: Response): Promise<void>
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    env: process.env.NODE_ENV || 'development'
+  });
+});
+
+// Catch all route for debugging
+app.get('*', (req: Request, res: Response) => {
+  res.status(404).json({ 
+    message: 'Route not found',
+    path: req.path,
+    method: req.method
+  });
 });
 
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+  console.log(`🚀 Server running on port ${port}`);
+  console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔗 Health check: http://localhost:${port}/health`);
 });
