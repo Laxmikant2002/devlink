@@ -60,9 +60,9 @@ app.get('/developers', async (req: Request, res: Response) => {
     }
     
     const developers = await DeveloperModel.find(query);
-    res.json(developers);
+    return res.json(developers);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching developers', error: (error as Error).message });
+    return res.status(500).json({ message: 'Error fetching developers', error: (error as Error).message });
   }
 });
 
@@ -72,32 +72,30 @@ app.get('/developers/:id', async (req: Request, res: Response) => {
     const { id } = req.params;
     
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      res.status(400).json({ message: 'Invalid developer ID format' });
-      return;
+      return res.status(400).json({ message: 'Invalid developer ID format' });
     }
     
     const developer = await DeveloperModel.findById(id);
     
     if (developer) {
-      res.json(developer);
+      return res.json(developer);
     } else {
-      res.status(404).json({ message: 'Developer not found' });
+      return res.status(404).json({ message: 'Developer not found' });
     }
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching developer', error: (error as Error).message });
+    return res.status(500).json({ message: 'Error fetching developer', error: (error as Error).message });
   }
 });
 
 // POST /developers - Add a new developer
-app.post('/developers', async (req: Request<{}, Developer, CreateDeveloperRequest>, res: Response): Promise<void> => {
+app.post('/developers', async (req: Request, res: Response) => {
   try {
     const { name, primarySkill, photoURL, skills, location, bio, contact } = req.body;
     
     if (!name || !primarySkill || !skills || !location) {
-      res.status(400).json({ 
+      return res.status(400).json({ 
         message: 'Missing required fields: name, primarySkill, skills, and location are required' 
       });
-      return;
     }
 
     const newDeveloper = new DeveloperModel({
@@ -111,20 +109,19 @@ app.post('/developers', async (req: Request<{}, Developer, CreateDeveloperReques
     });
     
     const savedDeveloper = await newDeveloper.save();
-    res.status(201).json(savedDeveloper);
+    return res.status(201).json(savedDeveloper);
   } catch (error) {
-    res.status(500).json({ message: 'Error creating developer', error: (error as Error).message });
+    return res.status(500).json({ message: 'Error creating developer', error: (error as Error).message });
   }
 });
 
 // PUT /developers/:id - Update a developer
-app.put('/developers/:id', async (req: Request<{ id: string }, Developer, Partial<CreateDeveloperRequest>>, res: Response): Promise<void> => {
+app.put('/developers/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      res.status(400).json({ message: 'Invalid developer ID format' });
-      return;
+      return res.status(400).json({ message: 'Invalid developer ID format' });
     }
 
     const updatedDeveloper = await DeveloperModel.findByIdAndUpdate(
@@ -134,47 +131,44 @@ app.put('/developers/:id', async (req: Request<{ id: string }, Developer, Partia
     );
     
     if (!updatedDeveloper) {
-      res.status(404).json({ message: 'Developer not found' });
-      return;
+      return res.status(404).json({ message: 'Developer not found' });
     }
 
-    res.json(updatedDeveloper);
+    return res.json(updatedDeveloper);
   } catch (error) {
-    res.status(500).json({ message: 'Error updating developer', error: (error as Error).message });
+    return res.status(500).json({ message: 'Error updating developer', error: (error as Error).message });
   }
 });
 
 // DELETE /developers/:id - Delete a developer
-app.delete('/developers/:id', async (req: Request, res: Response): Promise<void> => {
+app.delete('/developers/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     console.log('🗑️ DELETE request for developer ID:', id);
     
     if (!mongoose.Types.ObjectId.isValid(id)) {
       console.log('❌ Invalid ObjectId format:', id);
-      res.status(400).json({ message: 'Invalid developer ID format' });
-      return;
+      return res.status(400).json({ message: 'Invalid developer ID format' });
     }
 
     const deletedDeveloper = await DeveloperModel.findByIdAndDelete(id);
     
     if (!deletedDeveloper) {
       console.log('❌ Developer not found for deletion:', id);
-      res.status(404).json({ message: 'Developer not found' });
-      return;
+      return res.status(404).json({ message: 'Developer not found' });
     }
 
     console.log('✅ Developer deleted successfully:', deletedDeveloper.name);
-    res.status(204).send();
+    return res.status(204).send();
   } catch (error) {
     console.error('❌ Error deleting developer:', error);
-    res.status(500).json({ message: 'Error deleting developer', error: (error as Error).message });
+    return res.status(500).json({ message: 'Error deleting developer', error: (error as Error).message });
   }
 });
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
-  res.json({ 
+  return res.json({ 
     status: 'OK', 
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
@@ -184,7 +178,7 @@ app.get('/health', (req: Request, res: Response) => {
 
 // Catch all route for debugging
 app.get('*', (req: Request, res: Response) => {
-  res.status(404).json({ 
+  return res.status(404).json({ 
     message: 'Route not found',
     path: req.path,
     method: req.method
