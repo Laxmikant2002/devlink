@@ -62,12 +62,31 @@ function DeveloperDetail() {
 
   const handleDelete = async () => {
     try {
+      // Validate that we have a valid ID and developer
+      if (!id || !developer) {
+        setError('Unable to delete: Invalid developer information');
+        setDeleteConfirm(false);
+        return;
+      }
+
+      console.log('🗑️ Deleting developer:', developer?.name, 'ID:', id);
       await developerService.delete(id);
       console.log('✅ Developer deleted successfully');
+      
+      // Show success message briefly before redirecting
+      alert(`${developer?.name} has been deleted successfully`);
       navigate('/'); // Redirect to home after deletion
     } catch (err) {
-      setError(err.message);
       console.error('❌ Error deleting developer:', err);
+      
+      // More specific error handling
+      if (err.message.includes('not found')) {
+        setError('This developer has already been deleted or does not exist.');
+        // Still redirect to home since the developer doesn't exist
+        setTimeout(() => navigate('/'), 2000);
+      } else {
+        setError(err.message);
+      }
       setDeleteConfirm(false);
     }
   };
@@ -116,15 +135,44 @@ function DeveloperDetail() {
       const previewUrl = URL.createObjectURL(file);
       setPhotoPreview(previewUrl);
       
-      // Convert to base64 for backend compatibility
-      const reader = new FileReader();
-      reader.onloadend = () => {
+      // Compress and convert to base64
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        // Calculate new dimensions (max 800x800)
+        const maxSize = 800;
+        let { width, height } = img;
+        
+        if (width > height) {
+          if (width > maxSize) {
+            height = (height * maxSize) / width;
+            width = maxSize;
+          }
+        } else {
+          if (height > maxSize) {
+            width = (width * maxSize) / height;
+            height = maxSize;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Draw and compress
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Convert to base64 with compression
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8); // 80% quality
+        
         setEditForm(prev => ({
           ...prev,
-          photoURL: reader.result
+          photoURL: compressedDataUrl
         }));
       };
-      reader.readAsDataURL(file);
+      
+      img.src = previewUrl;
     }
   };
 

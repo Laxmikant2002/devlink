@@ -67,8 +67,15 @@ export const developerService = {
   // Delete developer
   delete: async (id) => {
     try {
-      await api.delete(`/developers/${id}`);
+      console.log('🗑️ Attempting to delete developer with ID:', id);
+      const response = await api.delete(`/developers/${id}`);
+      console.log('✅ Developer deleted successfully');
+      return response.data;
     } catch (error) {
+      console.error('❌ Delete error:', error.response?.status, error.response?.data);
+      if (error.response?.status === 404) {
+        throw new Error('Developer not found or already deleted');
+      }
       throw new Error(error.response?.data?.message || 'Failed to delete developer');
     }
   }

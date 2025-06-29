@@ -19,14 +19,16 @@ const allowedOrigins = [
   'http://localhost:3000',
   'https://your-frontend-app.onrender.com', // Update this with your actual frontend URL
   process.env.FRONTEND_URL
-].filter(Boolean);
+].filter((origin): origin is string => Boolean(origin));
 
 app.use(cors({
-  origin: allowedOrigins,
+  origin: allowedOrigins.length > 0 ? allowedOrigins : 'http://localhost:3000',
   credentials: true
 }));
 
-app.use(express.json());
+// Increase payload size limit for image uploads
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 // GET /developers - Get all developers with optional search
 app.get('/developers', async (req: Request, res: Response) => {
   try {
@@ -134,8 +136,10 @@ app.put('/developers/:id', async (req: Request<{ id: string }, Developer, Partia
 app.delete('/developers/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    console.log('🗑️ DELETE request for developer ID:', id);
     
     if (!mongoose.Types.ObjectId.isValid(id)) {
+      console.log('❌ Invalid ObjectId format:', id);
       res.status(400).json({ message: 'Invalid developer ID format' });
       return;
     }
@@ -143,12 +147,15 @@ app.delete('/developers/:id', async (req: Request, res: Response): Promise<void>
     const deletedDeveloper = await DeveloperModel.findByIdAndDelete(id);
     
     if (!deletedDeveloper) {
+      console.log('❌ Developer not found for deletion:', id);
       res.status(404).json({ message: 'Developer not found' });
       return;
     }
 
+    console.log('✅ Developer deleted successfully:', deletedDeveloper.name);
     res.status(204).send();
   } catch (error) {
+    console.error('❌ Error deleting developer:', error);
     res.status(500).json({ message: 'Error deleting developer', error: (error as Error).message });
   }
 });
